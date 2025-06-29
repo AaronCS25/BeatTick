@@ -1,24 +1,13 @@
 from fastapi import FastAPI
-from .database import create_db_and_tables
-from app.features.items.router import router as items_router
-from contextlib import asynccontextmanager
+from .core.database import engine, Base
+from app.features.tickets.routes import router as tickets_router
 
-app = FastAPI()
+Base.metadata.create_all(bind=engine)
 
-app.include_router(items_router, tags=["items"], prefix="/api")
+app = FastAPI(title="BeatTick")
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    create_db_and_tables()
-    yield
-    # Shutdown
-    pass
-
-app = FastAPI(lifespan=lifespan)
-def on_startup():
-    create_db_and_tables()
+app.include_router(tickets_router, prefix="/tickets", tags=["tickets"])
 
 @app.get("/")
 def read_root():
-    return {"message": "Server is up and running"}
+    return {"message": "Welcome to BeatTick"}
