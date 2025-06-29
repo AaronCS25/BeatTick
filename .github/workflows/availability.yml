@@ -1,0 +1,30 @@
+# .github/workflows/health-check.yml
+
+name: Site Availability Check
+
+on:
+  # Run on a schedule (e.g., every 15 minutes)
+  schedule:
+    - cron: '*/15 * * * *'
+  
+  # Allow manual triggering from the Actions tab in GitHub
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    name: Check Website Availability
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check the site URL
+        id: health_check
+        run: curl --fail --silent --output /dev/null ${{ secrets.SITE_URL }}
+
+      - name: Send notification if site is down
+        # This step only runs if the previous step ('health_check') failed.
+        if: failure() && steps.health_check.outcome == 'failure'
+        run: |
+          echo "🚨 The website at ${{ secrets.SITE_URL }} appears to be down."
+          echo "The health check failed at $(date)."
+          # This will make the job fail with a clear error message in the logs.
+          exit 1
