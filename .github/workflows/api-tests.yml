@@ -1,0 +1,51 @@
+# .github/workflows/api-tests.yml
+name: FastAPI Integration Tests with SQLite
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  test-api:
+    runs-on: ubuntu-latest
+    
+    # SQLite is a file-based database, so we don't need a separate service container.
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run FastAPI server in background
+      # Set the DATABASE_URL environment variable to point to a local SQLite database file.
+      # The FastAPI application will create and use 'beattick.db' in the root of the workspace.
+      env:
+        DATABASE_URL: "sqlite:///./beattick.db"
+      run: |
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        echo $! > uvicorn.pid # Save the process ID to stop it later
+
+    - name: Run Integration Tests
+      # The test script runs exactly as before. It doesn't need to know
+      # that the database has changed from PostgreSQL to SQLite.
+      run: python tests/test_api.py
+      
+    - name: Stop FastAPI server
+      # This step ensures the server is stopped even if the tests fail.
+      if: always()
+      run: |
+        if [ -f uvicorn.pid ]; then
+          kill $(cat uvicorn.pid)
+        fi
